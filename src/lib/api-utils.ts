@@ -174,6 +174,11 @@ export class AudioRecorder {
   private chunks: Blob[] = [];
 
   async startRecording(constraints?: MediaStreamConstraints): Promise<void> {
+    // Check if we are in a browser environment
+    if (typeof window === 'undefined' || !navigator.mediaDevices) {
+      throw new Error('Audio recording is only available in browser environments');
+    }
+
     try {
       // Try to get microphone access with fallback constraints
       const defaultConstraints = {
@@ -253,7 +258,7 @@ export class AudioRecorder {
   }
 
   private findSupportedMimeType(): string | null {
-    const types = [
+    const types: string[] = [
       'audio/webm;codecs=opus',
       'audio/webm',
       'audio/mp4;codecs=mp4a.40.2',

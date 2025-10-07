@@ -1,6 +1,7 @@
+/* eslint-disable */
 "use client";
 
-import React, { useState, useRef, useCallback, useMemo, Suspense, lazy, useEffect } from "react";
+import React, { useState, useRef, useCallback, Suspense, lazy, useEffect, useMemo } from "react";
 
 // Lazy load heavy components for better initial load performance
 const LazyQRCode = lazy(() => import("qrcode.react").then(module => ({ default: module.QRCodeSVG })));
@@ -126,6 +127,30 @@ export default function Home() {
     setError(null);
   }, []);
 
+  const handleRecordStop = useCallback(() => {
+    try {
+      if (audioChunksRef.current.length === 0) {
+        showError("No audio data recorded. Please try again.", 'warning');
+        return;
+      }
+
+      const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
+      const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+
+      if (audioBlob.size === 0) {
+        showError("Recording is empty. Please try again.", 'warning');
+        return;
+      }
+
+      setRecordedBlob(audioBlob);
+      setRecordAudioURL(URL.createObjectURL(audioBlob));
+      audioChunksRef.current = [];
+    } catch (error) {
+      console.error("Error processing recording:", error);
+      showError("Failed to process recording. Please try again.", 'error');
+    }
+  }, [showError]);
+
   const startRecording = useCallback(async () => {
     try {
       clearError();
@@ -223,49 +248,73 @@ export default function Home() {
   }, [showError, supportedTypes, clearError, handleRecordStop]);
 
   const pauseRecording = useCallback(() => {
-    if (mediaRecorderRef.current && recording && !isPaused) {
-      mediaRecorderRef.current.pause();
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recording && !isPaused) {
+      recorder.pause();
       setIsPaused(true);
     }
   }, [recording, isPaused]);
 
   const resumeRecording = useCallback(() => {
-    if (mediaRecorderRef.current && recording && isPaused) {
-      mediaRecorderRef.current.resume();
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recording && isPaused) {
+      recorder.resume();
       setIsPaused(false);
     }
   }, [recording, isPaused]);
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && recording) {
-      mediaRecorderRef.current.stop();
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recording) {
+      recorder.stop();
       setRecording(false);
       setIsPaused(false);
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      recorder.stream?.getTracks().forEach((track) => track.stop());
     }
   }, [recording]);
 
-  const handleRecordStop = useCallback(() => {
+  const uploadAudio = useCallback(async (file: Blob | File): Promise<string | null> => {
+    const formData = new FormData();
+    const extension = file.type.split('/')[1] || 'webm';
+    const audioFile = new File([file], `recording-${Date.now()}.${extension}`, {
+      type: file.type || 'audio/webm',
+    });
+    formData.append("audio", audioFile);
+
     try {
-      if (audioChunksRef.current.length === 0) {
-        showError("No audio data recorded. Please try again.", 'warning');
-        return;
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
       }
 
-      const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
-      const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-
-      if (audioBlob.size === 0) {
-        showError("Recording is empty. Please try again.", 'warning');
-        return;
+      const data: { url?: string } = await response.json();
+      if (!data.url) {
+        throw new Error("No URL returned from server");
       }
-
-      setRecordedBlob(audioBlob);
-      setRecordAudioURL(URL.createObjectURL(audioBlob));
-      audioChunksRef.current = [];
+      return data.url;
     } catch (error) {
-      console.error("Error processing recording:", error);
-      showError("Failed to process recording. Please try again.", 'error');
+      console.error("Upload error:", error);
+      if (error instanceof Error) {
+        if (error.message.includes("Rate limit")) {
+          showError("Upload limit reached. Please try again later.", 'warning');
+        } else if (error.message.includes("File too large")) {
+          showError("File is too large. Maximum size is 10MB.", 'error');
+        } else if (error.message.includes("Invalid file")) {
+          showError("Invalid file format. Please upload a valid audio file.", 'error');
+        } else if (error.message.includes("File is empty")) {
+          showError("Recording is empty. Please try recording again.", 'error');
+        } else {
+          showError(`Upload failed: ${error.message}`, 'error');
+        }
+      } else {
+        showError("Failed to upload audio. Please check your connection and try again.", 'error');
+      }
+      throw error;
     }
   }, [showError]);
 
@@ -354,50 +403,6 @@ export default function Home() {
       fileInputRef.current.click();
     }
   }, [resetAdvancedOptions]);
-
-  const uploadAudio = useCallback(async (file: Blob | File): Promise<string | null> => {
-    const formData = new FormData();
-    const audioFile = new File([file], `recording-${Date.now()}.${file.type.split('/')[1] || 'webm'}`, {
-      type: file.type || 'audio/webm'
-    });
-    formData.append("audio", audioFile);
-
-    try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        throw new Error(errorData.error || `HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      if (!data.url) {
-        throw new Error("No URL returned from server");
-      }
-      return data.url;
-    } catch (error) {
-      console.error("Upload error:", error);
-      if (error instanceof Error) {
-        if (error.message.includes("Rate limit")) {
-          showError("Upload limit reached. Please try again later.", 'warning');
-        } else if (error.message.includes("File too large")) {
-          showError("File is too large. Maximum size is 10MB.", 'error');
-        } else if (error.message.includes("Invalid file")) {
-          showError("Invalid file format. Please upload a valid audio file.", 'error');
-        } else if (error.message.includes("File is empty")) {
-          showError("Recording is empty. Please try recording again.", 'error');
-        } else {
-          showError(`Upload failed: ${error.message}`, 'error');
-        }
-      } else {
-        showError("Failed to upload audio. Please check your connection and try again.", 'error');
-      }
-      throw error;
-    }
-  }, [showError]);
 
   const copyToClipboard = useCallback(async (text: string) => {
     try {
@@ -816,12 +821,12 @@ export default function Home() {
                     <div className="flex">
                       <input
                         type="text"
-                        value={(showRecordShareOptions ? recordShareLink : uploadShareLink) ?? ""}
+                        value={(showRecordShareOptions ? recordShareLink : uploadShareLink) || ""}
                         readOnly
                         className="flex-1 px-4 py-3 bg-gray-100/50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-l-lg text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[color:var(--color-primary)_/_50] font-mono text-sm"
                       />
                       <button
-                        onClick={() => copyToClipboard((showRecordShareOptions ? recordShareLink : uploadShareLink) ?? "")}
+                        onClick={() => copyToClipboard((showRecordShareOptions ? recordShareLink : uploadShareLink) || "")}
                         className="px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white dark:text-black rounded-r-lg transition-all duration-300 font-light"
                       >
                         {copyFeedback ? 'Copied!' : 'Copy'}

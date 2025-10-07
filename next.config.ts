@@ -7,18 +7,6 @@ const nextConfig: NextConfig = {
   // Enable modern compression
   compress: true,
 
-  // Optimize CSS - remove unused styles in production
-  // optimizeCss: true, // Removed as this is not a valid Next.js option
-
-  // Bundle analyzer (only in development with ANALYZE=true)
-  // ...(process.env.ANALYZE === 'true' && {
-  //   experimental: {
-  //     bundleAnalyzer: {
-  //       enabled: true,
-  //     },
-  //   },
-  // }),
-
   // Security headers
   async headers() {
     return [
@@ -77,11 +65,8 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // File size limits - increase for audio files
-  experimental: {
-    serverComponentsExternalPackages: ['fs'],
-    largePageDataBytes: 128 * 1000, // 128KB for large pages
-  },
+  // Vercel-specific optimizations
+  output: 'standalone',
 
   // Optimize images with modern formats
   images: {
@@ -89,12 +74,8 @@ const nextConfig: NextConfig = {
     formats: ['image/webp', 'image/avif'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    dangerouslyAllowSVG: true,
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    dangerouslyAllowSVG: false,
   },
-
-  // Optimize fonts
-  // optimizeFonts: true, // Removed as this is not a valid Next.js option
 
   // Remove X-Powered-By header
   poweredByHeader: false,
@@ -102,11 +83,10 @@ const nextConfig: NextConfig = {
   // Enable React strict mode for better development experience
   reactStrictMode: true,
 
-  // Output configuration for better performance
-  // output: 'standalone', // Removed as this may cause build issues
-
   // Enable modern JavaScript features
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
 };
+
+export default nextConfig;
