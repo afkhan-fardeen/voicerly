@@ -319,7 +319,7 @@ export default function SharePage({ params: paramsPromise }: SharePageProps) {
             Shared Audio
           </h1>
           <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Listen to this audio recording and download it if you'd like.
+            Listen to this audio recording and download it if you&apos;d like.
           </p>
         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useMemo, memo } from "react";
+import React, { useState, useRef, useCallback, memo } from "react";
 import { QRCodeSVG as QRCode } from "qrcode.react";
 import { 
   FacebookShareButton, FacebookIcon,
@@ -56,8 +56,8 @@ export default function Home() {
       }
       
       // Check for iOS Safari and provide specific guidance
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+      const _isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const _isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
       
       // iOS Safari requires more specific audio constraints
       const audioConstraints = {
@@ -331,11 +331,13 @@ export default function Home() {
   }, []);
 
   // Memoized QR Code component
-  const MemoizedQRCode = memo(({ value }: { value: string }) => (
-    <div className="bg-white p-3 rounded-lg inline-block">
-      <QRCode value={value} size={128} />
-    </div>
-  ));
+  const MemoizedQRCode = memo(function MemoizedQRCode({ value }: { value: string }) {
+    return (
+      <div className="bg-white p-3 rounded-lg inline-block">
+        <QRCode value={value} size={128} />
+      </div>
+    );
+  });
 
   const getErrorColor = (type: ErrorState['type']) => {
     switch (type) {

@@ -188,7 +188,7 @@ export class AudioRecorder {
         this.stream = await navigator.mediaDevices.getUserMedia(
           constraints || defaultConstraints
         );
-      } catch (_error) {
+      } catch {
         // Fallback for older browsers or restricted permissions
         console.warn('Advanced constraints failed, using basic audio constraints');
         this.stream = await navigator.mediaDevices.getUserMedia({

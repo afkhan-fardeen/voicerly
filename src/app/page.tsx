@@ -676,7 +676,7 @@ export default function Home() {
                         <p className="mb-1">📱 <strong>iOS Safari users:</strong></p>
                         <p>If microphone access fails, please:</p>
                         <ul className="text-left mt-2 space-y-1">
-                          <li>• Ensure you're using HTTPS</li>
+                          <li>• Ensure you&apos;re using HTTPS</li>
                           <li>• Allow microphone when prompted</li>
                           <li>• Check Settings → Safari → Microphone</li>
                         </ul>

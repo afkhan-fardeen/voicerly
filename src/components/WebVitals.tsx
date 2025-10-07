@@ -22,8 +22,8 @@ export function WebVitalsTracker({ enabled = process.env.NODE_ENV === 'productio
       });
 
       // Example: Send to Google Analytics 4
-      if (typeof window !== 'undefined' && (window as Window & { gtag?: Function }).gtag) {
-        const gtag = (window as Window & { gtag?: Function }).gtag;
+      if (typeof window !== 'undefined' && (window as Window & { gtag?: (...args: unknown[]) => void }).gtag) {
+        const gtag = (window as Window & { gtag?: (...args: unknown[]) => void }).gtag;
         if (gtag) {
           gtag('event', metric.name, {
             value: Math.round(metric.value),
