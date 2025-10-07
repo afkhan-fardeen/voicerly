@@ -1,0 +1,683 @@
+"use client";
+
+import React, { useState, useRef, useCallback, useMemo, memo, Suspense, lazy } from "react";
+
+// Lazy load heavy components for better initial load performance
+const LazyQRCode = lazy(() => import("qrcode.react").then(module => ({ default: module.QRCodeSVG })));
+
+// Social Share Component - loaded lazily when needed
+const LazySocialShareComponent = lazy(async () => {
+  const module = await import("react-share");
+  return {
+    default: function SocialShareComponent({ url }: { url: string }) {
+      const {
+        FacebookShareButton, FacebookIcon,
+        TwitterShareButton, TwitterIcon,
+        LinkedinShareButton, LinkedinIcon,
+        WhatsappShareButton, WhatsappIcon,
+        EmailShareButton, EmailIcon
+      } = module;
+
+      return (
+        <div className="flex justify-center space-x-4">
+          <FacebookShareButton url={url}>
+            <FacebookIcon size={40} round />
+          </FacebookShareButton>
+          <TwitterShareButton url={url}>
+            <TwitterIcon size={40} round />
+          </TwitterShareButton>
+          <LinkedinShareButton url={url}>
+            <LinkedinIcon size={40} round />
+          </LinkedinShareButton>
+          <WhatsappShareButton url={url}>
+            <WhatsappIcon size={40} round />
+          </WhatsappShareButton>
+          <EmailShareButton url={url}>
+            <EmailIcon size={40} round />
+          </EmailShareButton>
+        </div>
+      );
+    }
+  };
+});
+
+// Loading component for lazy loaded elements
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center p-4">
+    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+    </svg>
+  </div>
+);
+
+interface ErrorState {
+  message: string;
+  type: 'error' | 'warning' | 'info' | 'success';
+}
+
+export default function Home() {
+  const [activeTab, setActiveTab] = useState<'record' | 'upload'>('record');
+  const [recording, setRecording] = useState(false);
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+  const [recordAudioURL, setRecordAudioURL] = useState<string | null>(null);
+  const [recordShareLink, setRecordShareLink] = useState<string | null>(null);
+  const [showRecordShareOptions, setShowRecordShareOptions] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<ErrorState | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadAudioURL, setUploadAudioURL] = useState<string | null>(null);
+  const [uploadShareLink, setUploadShareLink] = useState<string | null>(null);
+  const [showUploadShareOptions, setShowUploadShareOptions] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Error handling utility
+  const showError = useCallback((message: string, type: ErrorState['type'] = 'error') => {
+    setError({ message, type });
+    setTimeout(() => setError(null), 5000);
+  }, []);
+
+  // Clear error
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
+
+  // Recording functions
+  const startRecording = async () => {
+    try {
+      clearError();
+      
+      // Check if MediaRecorder is supported
+      if (!window.MediaRecorder) {
+        showError("Your browser doesn't support audio recording. Please use a modern browser.", 'error');
+        return;
+      }
+      
+      // Check for iOS Safari and provide specific guidance
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+      
+      // iOS Safari requires more specific audio constraints
+      const audioConstraints = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 44100,
+        channelCount: 1, // Mono for better compatibility
+        // iOS Safari specific constraints
+        sampleSize: 16,
+        latency: 0.01
+      };
+      
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: audioConstraints
+        });
+      } catch (constraintError) {
+        console.log("Advanced constraints failed, trying basic constraints:", constraintError);
+        // Fallback to basic constraints for older iOS versions
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true
+          }
+        });
+      }
+      
+      // iOS Safari compatibility: Check for supported MIME types in order of preference
+      let mimeType = '';
+      const supportedTypes = [
+        'audio/mp4;codecs=mp4a.40.2', // MP4 with AAC - best compatibility
+        'audio/mp4', // MP4 without codec specification
+        'audio/webm;codecs=opus', // WebM with Opus
+        'audio/webm', // WebM without codec specification
+        'audio/wav', // WAV as last resort
+      ];
+      
+      for (const type of supportedTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          mimeType = type;
+          break;
+        }
+      }
+      
+      if (!mimeType) {
+        showError("Your browser doesn't support audio recording. Please use a modern browser.", 'error');
+        return;
+      }
+      
+      mediaRecorderRef.current = new MediaRecorder(stream, {
+        mimeType: mimeType
+      });
+      
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+      
+      mediaRecorderRef.current.onstop = handleRecordStop;
+      mediaRecorderRef.current.onerror = (event) => {
+        console.error("MediaRecorder error:", event);
+        showError("Recording failed. Please try again.", 'error');
+        setRecording(false);
+      };
+      
+      mediaRecorderRef.current.start(1000); // Collect data every second
+      setRecording(true);
+      setRecordedBlob(null);
+      setRecordAudioURL(null);
+      setRecordShareLink(null);
+      setShowRecordShareOptions(false);
+      
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          showError("Microphone access denied. Please allow microphone access and try again.", 'error');
+        } else if (error.name === 'NotFoundError') {
+          showError("No microphone found. Please connect a microphone and try again.", 'error');
+        } else {
+          showError("Could not access microphone. Please check your device settings.", 'error');
+        }
+      } else {
+        showError("Could not access microphone. Please check permissions.", 'error');
+      }
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && recording) {
+      mediaRecorderRef.current.stop();
+      setRecording(false);
+      
+      // Stop all tracks to release microphone
+      const stream = mediaRecorderRef.current.stream;
+      stream.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  const handleRecordStop = () => {
+    try {
+      if (audioChunksRef.current.length === 0) {
+        showError("No audio data recorded. Please try again.", 'warning');
+        return;
+      }
+
+      // Determine the correct MIME type based on what was recorded
+      const mimeType = mediaRecorderRef.current?.mimeType || "audio/webm";
+      const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
+      
+      // Check if blob is valid
+      if (audioBlob.size === 0) {
+        showError("Recording is empty. Please try again.", 'warning');
+        return;
+      }
+
+      setRecordedBlob(audioBlob);
+      const localURL = URL.createObjectURL(audioBlob);
+      setRecordAudioURL(localURL);
+      audioChunksRef.current = [];
+    } catch (error) {
+      console.error("Error processing recording:", error);
+      showError("Failed to process recording. Please try again.", 'error');
+    }
+  };
+
+  const retakeRecording = () => {
+    setRecordedBlob(null);
+    setRecordAudioURL(null);
+    setRecordShareLink(null);
+    setShowRecordShareOptions(false);
+    startRecording();
+  };
+
+  const saveAndShareRecording = async () => {
+    if (!recordedBlob) {
+      showError("No recording to save. Please record audio first.", 'warning');
+      return;
+    }
+    
+    setIsUploading(true);
+    clearError();
+    
+    try {
+      const link = await uploadAudio(recordedBlob);
+      if (link) {
+        setRecordShareLink(link);
+        setShowRecordShareOptions(true);
+        showError("Recording saved and shared successfully!", 'success');
+      }
+    } catch (error) {
+      console.error("Error saving recording:", error);
+      showError("Failed to save recording. Please try again.", 'error');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Upload functions
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setUploadFile(file);
+      const localURL = URL.createObjectURL(file);
+      setUploadAudioURL(localURL);
+      setUploadShareLink(null);
+      setShowUploadShareOptions(false);
+
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const uploadAndShare = async () => {
+    if (!uploadFile) {
+      showError("No file selected. Please choose an audio file first.", 'warning');
+      return;
+    }
+    
+    setIsUploading(true);
+    clearError();
+    
+    try {
+      const link = await uploadAudio(uploadFile);
+      if (link) {
+        setUploadShareLink(link);
+        setShowUploadShareOptions(true);
+        showError("File uploaded and shared successfully!", 'success');
+      }
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      showError("Failed to upload file. Please try again.", 'error');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const reupload = () => {
+    setUploadFile(null);
+    setUploadAudioURL(null);
+    setUploadShareLink(null);
+    setShowUploadShareOptions(false);
+    fileInputRef.current?.click();
+  };
+
+  const uploadAudio = async (file: Blob | File): Promise<string | null> => {
+    const formData = new FormData();
+    
+    // Create a proper File object with correct name and type for better compatibility
+    const audioFile = new File([file], `recording-${Date.now()}.${file.type.split('/')[1] || 'webm'}`, {
+      type: file.type || 'audio/webm'
+    });
+    
+    formData.append("audio", audioFile);
+
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        throw new Error(errorData.error || `HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (!data.url) {
+        throw new Error("No URL returned from server");
+      }
+      
+      return data.url;
+    } catch (error) {
+      console.error("Upload error:", error);
+      
+      if (error instanceof Error) {
+        if (error.message.includes("Rate limit")) {
+          showError("Upload limit reached. Please try again later.", 'warning');
+        } else if (error.message.includes("File too large")) {
+          showError("File is too large. Maximum size is 10MB.", 'error');
+        } else if (error.message.includes("Invalid file")) {
+          showError("Invalid file format. Please upload a valid audio file.", 'error');
+        } else if (error.message.includes("File is empty")) {
+          showError("Recording is empty. Please try recording again.", 'error');
+        } else {
+          showError(`Upload failed: ${error.message}`, 'error');
+        }
+      } else {
+        showError("Failed to upload audio. Please check your connection and try again.", 'error');
+      }
+      
+      throw error;
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showError("Link copied to clipboard!", 'success');
+    } catch (error) {
+      console.error("Failed to copy to clipboard:", error);
+      showError("Failed to copy link. Please copy manually.", 'warning');
+    }
+  };
+
+  const getEmbedCode = useCallback((url: string) => {
+    return `<audio controls src="${url}"></audio>`;
+  }, []);
+
+  // Memoized QR Code component
+  const MemoizedQRCode = memo(({ value }: { value: string }) => (
+    <div className="bg-white dark:bg-black p-3 rounded-lg inline-block">
+        <LazyQRCode value={value} size={128} />
+    </div>
+  ));
+
+  const getErrorColor = (type: ErrorState['type']) => {
+    switch (type) {
+      case 'error': return 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/20 border-red-200 dark:border-red-500/30';
+      case 'warning': return 'text-yellow-600 bg-yellow-50 dark:text-yellow-400 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-500/30';
+      case 'info': return 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/20 border-blue-200 dark:border-blue-500/30';
+      case 'success': return 'text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-900/20 border-green-200 dark:border-green-500/30';
+      default: return 'text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-900/20 border-red-200 dark:border-red-500/30';
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-white dark:bg-black">
+      {/* Hero - compact */}
+      <section className="py-14 sm:py-16 bg-white dark:bg-black">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h1 className="text-4xl sm:text-6xl font-light text-black dark:text-white mb-3 tracking-tight">
+              Record & share
+              <span className="block text-blue-600 dark:text-orange-400 font-normal">audio instantly</span>
+            </h1>
+            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed">
+              Capture or upload audio from any device and get a secure link to share or embed.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        {/* Error Display */}
+        {error && (
+          <div className={`mb-8 p-4 rounded-lg border ${getErrorColor(error.type)}`}>
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                {error.type === 'error' && (
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                )}
+                {error.type === 'success' && (
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                )}
+                {error.type === 'warning' && (
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                )}
+                {error.type === 'info' && (
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                )}
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-black dark:text-white">{error.message}</p>
+              </div>
+              <div className="ml-auto pl-3">
+                <button
+                  onClick={clearError}
+                  className="inline-flex text-current hover:opacity-75 focus:outline-none"
+                >
+                  <span className="sr-only">Dismiss</span>
+                  <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Segmented control */}
+        <div className="flex justify-center mb-2">
+          <div className="inline-flex bg-gray-100/70 dark:bg-white/5 rounded-xl p-1 border border-gray-200/60 dark:border-white/10">
+            <button
+              onClick={() => setActiveTab('record')}
+              className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'record'
+                  ? 'bg-[var(--color-primary)] text-white dark:text-black shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white'
+              }`}
+            >
+              Record
+            </button>
+            <button
+              onClick={() => setActiveTab('upload')}
+              className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'upload'
+                  ? 'bg-[var(--color-primary)] text-white dark:text-black shadow-sm'
+                  : 'text-gray-700 dark:text-gray-300 hover:text-black dark:hover:text-white'
+              }`}
+            >
+              Upload
+            </button>
+          </div>
+        </div>
+
+        {/* Record/Upload Interface */}
+        <section id="core-interface" className="space-y-8 mb-16">
+          {/* Recording Interface */}
+          {activeTab === 'record' && (
+            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl p-5 sm:p-6 md:p-8 border border-gray-200/60 dark:border-white/10 shadow-sm">
+              <div className="text-center">
+                {!recording && !recordedBlob && (
+                  <div className="space-y-6 text-center">
+                    <p className="text-gray-600 dark:text-gray-400">Start a new recording</p>
+                    <button
+                      onClick={startRecording}
+                      className="px-8 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white dark:text-black rounded-lg transition"
+                    >
+                      Start Recording
+                    </button>
+                  </div>
+                )}
+
+                {recording && (
+                  <div className="space-y-5">
+                    <div className="flex justify-center items-center gap-2 text-red-600">
+                      <span className="inline-block h-2.5 w-2.5 bg-red-500 rounded-full animate-pulse"></span>
+                      <span className="text-sm">Recording…</span>
+                    </div>
+                    <button
+                      onClick={stopRecording}
+                      className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg transition"
+                    >
+                      Stop
+                    </button>
+                  </div>
+                )}
+
+                {recordedBlob && recordAudioURL && !showRecordShareOptions && (
+                  <div className="space-y-5">
+                    <audio controls src={recordAudioURL} className="w-full rounded-lg" />
+                    <div className="flex gap-3 justify-center">
+                      <button
+                        onClick={retakeRecording}
+                        className="px-5 py-2.5 bg-white/60 dark:bg-white/10 text-black dark:text-white rounded-lg border border-gray-200/60 dark:border-white/15 hover:bg-white/80 dark:hover:bg-white/20 transition"
+                      >
+                        Retake
+                      </button>
+                      <button
+                        onClick={saveAndShareRecording}
+                        disabled={isUploading}
+                        className="px-5 py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] disabled:bg-gray-300 disabled:cursor-not-allowed text-white dark:text-black rounded-lg transition flex items-center gap-2"
+                      >
+                        {isUploading ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            <span>Saving…</span>
+                          </>
+                        ) : (
+                          'Save & Share'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Upload Interface */}
+          {activeTab === 'upload' && (
+            <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl p-5 sm:p-6 md:p-8 border border-gray-200/60 dark:border-white/10 shadow-sm">
+              <div className="text-center">
+                {!uploadFile && (
+                  <div className="space-y-6 text-center">
+                    <p className="text-gray-600 dark:text-gray-400">Upload an audio file (MP3, WAV, etc.)</p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="audio/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-8 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white dark:text-black rounded-lg transition"
+                    >
+                      Choose File
+                    </button>
+                  </div>
+                )}
+
+                {uploadFile && uploadAudioURL && !showUploadShareOptions && (
+                  <div className="space-y-5">
+                    <p className="text-gray-600 dark:text-gray-400">File ready: {uploadFile.name}</p>
+                    <audio controls src={uploadAudioURL} className="w-full rounded-lg" />
+                    <div className="flex gap-3 justify-center">
+                      <button
+                        onClick={reupload}
+                        className="px-5 py-2.5 bg-white/60 dark:bg-white/10 text-black dark:text-white rounded-lg border border-gray-200/60 dark:border-white/15 hover:bg-white/80 dark:hover:bg-white/20 transition"
+                      >
+                        Choose Different File
+                      </button>
+                      <button
+                        onClick={uploadAndShare}
+                        disabled={isUploading}
+                        className="px-5 py-2.5 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] disabled:bg-gray-300 disabled:cursor-not-allowed text-white dark:text-black rounded-lg transition flex items-center gap-2"
+                      >
+                        {isUploading ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            <span>Uploading…</span>
+                          </>
+                        ) : (
+                          'Upload & Share'
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Share Options - Generic for both tabs */}
+          {(() => {
+            const activeShareLink = showRecordShareOptions ? recordShareLink : showUploadShareOptions ? uploadShareLink : null;
+            if (!activeShareLink) return null;
+            return (
+              <div className="bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl p-5 sm:p-6 md:p-8 border border-gray-200/60 dark:border-white/10 shadow-sm">
+                <h3 className="text-xl font-light text-black dark:text-white mb-8 text-center">Share Your Audio</h3>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-light text-gray-600 dark:text-gray-400 mb-3">Share Link</label>
+                    <div className="flex">
+                      <input
+                        type="text"
+                        value={activeShareLink}
+                        readOnly
+                        className="flex-1 px-4 py-3 bg-gray-100/50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-l-lg text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[color:var(--color-primary)_/_50] font-mono text-sm"
+                      />
+                      <button
+                        onClick={() => copyToClipboard(activeShareLink)}
+                        className="px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white dark:text-black rounded-r-lg transition-all duration-300 font-light"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-center">
+                    <p className="text-gray-600 dark:text-gray-400 mb-4 font-light">QR Code</p>
+                    <MemoizedQRCode value={activeShareLink} />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-light text-gray-600 dark:text-gray-400 mb-3">Embed Code</label>
+                    <div className="flex">
+                      <input
+                        type="text"
+                        value={getEmbedCode(activeShareLink)}
+                        readOnly
+                        className="flex-1 px-4 py-3 bg-gray-100/50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-l-lg text-black dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--color-primary)_/_50] font-mono"
+                      />
+                      <button
+                        onClick={() => copyToClipboard(getEmbedCode(activeShareLink))}
+                        className="px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white dark:text-black rounded-r-lg transition-all duration-300 font-light"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-center space-x-4">
+                    <FacebookShareButton url={activeShareLink}>
+                      <FacebookIcon size={40} round />
+                    </FacebookShareButton>
+                    <TwitterShareButton url={activeShareLink}>
+                      <TwitterIcon size={40} round />
+                    </TwitterShareButton>
+                    <LinkedinShareButton url={activeShareLink}>
+                      <LinkedinIcon size={40} round />
+                    </LinkedinShareButton>
+                    <WhatsappShareButton url={activeShareLink}>
+                      <WhatsappIcon size={40} round />
+                    </WhatsappShareButton>
+                    <EmailShareButton url={activeShareLink}>
+                      <EmailIcon size={40} round />
+                    </EmailShareButton>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </section>
+
+        {/* How It Works and Why sections removed for a simpler homepage */}
+
+        {/* CTA removed for a simpler homepage */}
+      </div>
+    </div>
+  );
+}

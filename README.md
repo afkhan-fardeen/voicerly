@@ -1,36 +1,118 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Voicerly - A Vocaroo Clone
+
+A modern voice recording and sharing application built with Next.js and Supabase. Record audio directly in your browser and share it with others instantly.
+
+## Features
+
+- 🎤 **Voice Recording**: Record audio directly in your browser using the Web Audio API
+- 📤 **Instant Upload**: Upload recordings to Supabase Storage with automatic processing
+- 🔗 **Easy Sharing**: Generate shareable links for your recordings
+- 📱 **Responsive Design**: Works perfectly on desktop and mobile devices
+- 🔒 **Secure**: Built with security best practices and rate limiting
+- ⚡ **Fast**: Optimized for performance with Next.js 15
+
+## Tech Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes
+- **Database**: Supabase (PostgreSQL)
+- **Storage**: Supabase Storage
+- **Authentication**: Public access (no auth required)
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
+- Node.js 18+ 
+- A Supabase account
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <your-repo-url>
+cd my-vocaroo-clone
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install dependencies:
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Set up Supabase:
+   - Follow the instructions in [SUPABASE_SETUP.md](./SUPABASE_SETUP.md)
+   - Create a `.env.local` file with your Supabase credentials
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. Run the development server:
+```bash
+npm run dev
+```
 
-## Learn More
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
 
-To learn more about Next.js, take a look at the following resources:
+## Environment Variables
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Create a `.env.local` file in the root directory:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```env
+# Supabase Configuration
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 
-## Deploy on Vercel
+# Application Configuration
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+CLEANUP_TOKEN=your_cleanup_token_here
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# File upload limits
+MAX_FILE_SIZE=10485760
+MAX_FILES_PER_HOUR=10
+FILE_CLEANUP_MAX_AGE=86400000
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Database Schema
+
+The application uses a single `audio_files` table in Supabase with the following structure:
+
+- `id` (UUID): Primary key
+- `file_name` (VARCHAR): Unique filename
+- `original_name` (VARCHAR): Original uploaded filename
+- `file_size` (BIGINT): File size in bytes
+- `mime_type` (VARCHAR): MIME type
+- `storage_path` (TEXT): Path in Supabase Storage
+- `created_at` (TIMESTAMP): Creation timestamp
+- `download_count` (INTEGER): Download counter
+- `is_active` (BOOLEAN): Active status
+
+## API Endpoints
+
+- `POST /api/upload` - Upload audio files
+- `GET /api/cleanup` - Get file statistics
+- `POST /api/cleanup` - Clean up expired files (with auth token)
+
+## Deployment
+
+### Vercel (Recommended)
+
+1. Push your code to GitHub
+2. Connect your repository to Vercel
+3. Add environment variables in Vercel dashboard
+4. Deploy!
+
+### Other Platforms
+
+The app can be deployed to any platform that supports Next.js:
+- Netlify
+- Railway
+- DigitalOcean App Platform
+- AWS Amplify
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## License
+
+MIT License - see LICENSE file for details
