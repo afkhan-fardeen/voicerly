@@ -3,7 +3,6 @@
 import { notFound } from "next/navigation";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Navigation from "@/components/Navigation";
 import { 
   updateDownloadCount,
   getStorageFileUrl,
@@ -12,7 +11,7 @@ import {
 } from "@/lib/supabase";
 
 interface SharePageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 // Validate ID format to prevent path traversal
 function validateId(id: string): boolean {
@@ -31,19 +30,20 @@ export default function SharePage({ params }: SharePageProps) {
   const [isDeleted, setIsDeleted] = useState(false);
 
   useEffect(() => {
-    const id = params?.id;
-    console.log("SharePage: Processing ID:", id);
-
-    if (!id || !validateId(id)) {
-      console.log("SharePage: Invalid ID format:", id);
-      notFound();
-      return;
-    }
-
-    setUniqueId(id);
-
-    async function loadAudioFile() {
+    async function initializeShare() {
       try {
+        const resolvedParams = await params;
+        const id = resolvedParams?.id;
+        console.log("SharePage: Processing ID:", id);
+
+        if (!id || !validateId(id)) {
+          console.log("SharePage: Invalid ID format:", id);
+          notFound();
+          return;
+        }
+
+        setUniqueId(id);
+
         // Find the audio file by unique ID in the database
         const fileNamePattern = `${id}.%`;
         console.log("SharePage: Querying for file pattern:", fileNamePattern);
@@ -79,7 +79,7 @@ export default function SharePage({ params }: SharePageProps) {
       }
     }
 
-    loadAudioFile();
+    initializeShare();
   }, [params]);
 
   const handleDownload = async () => {
@@ -238,9 +238,7 @@ export default function SharePage({ params }: SharePageProps) {
 
   if (isDeleted) {
     return (
-      <div className="min-h-screen bg-white dark:bg-black flex flex-col">
-        <Navigation />
-        <main className="flex-1 flex items-center justify-center px-4 py-16">
+      <div className="flex-1 flex items-center justify-center px-4 py-16">
           <div className="w-full max-w-2xl">
             <div className="text-center bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-xl p-8 sm:p-12 border border-gray-200/60 dark:border-white/10 shadow-sm">
               <div className="w-20 h-20 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-8">
@@ -265,15 +263,13 @@ export default function SharePage({ params }: SharePageProps) {
               </Link>
             </div>
           </div>
-        </main>
-
       </div>
     );
   }
 
   if (!audioFile) {
     return (
-      <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
+      <div className="flex items-center justify-center py-32">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)] mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">Loading audio...</p>
@@ -287,8 +283,7 @@ export default function SharePage({ params }: SharePageProps) {
   console.log('File extension:', fileExtension); // Use the variable to avoid lint warning
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
-      <Navigation />
+    <div className="py-16">
       <main>
 
       {/* Main Content */}
@@ -299,7 +294,7 @@ export default function SharePage({ params }: SharePageProps) {
             Shared Audio
           </h1>
           <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Listen to this audio recording and download it if you&apos;d like.
+            Listen to this audio recording and download it if you would like.
           </p>
         </div>
 
