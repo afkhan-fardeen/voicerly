@@ -49,8 +49,13 @@ export default function RootLayout({
           }}
         />
         <ErrorBoundary>
-          {children}
+          <Navigation />
+          <main className="min-h-screen bg-white dark:bg-black">
+            {children}
+          </main>
+          <Footer />
         </ErrorBoundary>
+        <WebVitalsTracker />
       </body>
     </html>
   );

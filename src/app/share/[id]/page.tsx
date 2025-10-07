@@ -12,7 +12,7 @@ import {
 } from "@/lib/supabase";
 
 interface SharePageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
 }
 // Validate ID format to prevent path traversal
 function validateId(id: string): boolean {
@@ -21,7 +21,7 @@ function validateId(id: string): boolean {
   return idRegex.test(id);
 }
 
-export default function SharePage({ params: paramsPromise }: SharePageProps) {
+export default function SharePage({ params }: SharePageProps) {
   const [audioFile, setAudioFile] = useState<AudioFileRecord | null>(null);
   const [audioSrc, setAudioSrc] = useState<string>('');
   const [shareUrl, setShareUrl] = useState<string>('');
@@ -31,28 +31,18 @@ export default function SharePage({ params: paramsPromise }: SharePageProps) {
   const [isDeleted, setIsDeleted] = useState(false);
 
   useEffect(() => {
+    const id = params?.id;
+    console.log("SharePage: Processing ID:", id);
+
+    if (!id || !validateId(id)) {
+      console.log("SharePage: Invalid ID format:", id);
+      notFound();
+      return;
+    }
+
+    setUniqueId(id);
+
     async function loadAudioFile() {
-      let params;
-      try {
-        params = await paramsPromise;
-      } catch (error) {
-        console.error("Error awaiting params:", error);
-        notFound();
-        return;
-      }
-
-      const id = params?.id;
-      console.log("SharePage: Processing ID:", id);
-
-      // Validate ID format
-      if (!id || !validateId(id)) {
-        console.log("SharePage: Invalid ID format:", id);
-        notFound();
-        return;
-      }
-
-      setUniqueId(id);
-
       try {
         // Find the audio file by unique ID in the database
         const fileNamePattern = `${id}.%`;
@@ -69,7 +59,9 @@ export default function SharePage({ params: paramsPromise }: SharePageProps) {
         console.log("SharePage: Found audio file:", file.id, file.file_name);
 
         // Compute share URL on client
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || window.location.origin;
+        const baseUrl =
+          process.env.NEXT_PUBLIC_BASE_URL ||
+          (typeof window !== "undefined" ? window.location.origin : "");
         const url = `${baseUrl}/share/${id}`;
         setShareUrl(url);
 
@@ -88,7 +80,7 @@ export default function SharePage({ params: paramsPromise }: SharePageProps) {
     }
 
     loadAudioFile();
-  }, [paramsPromise]);
+  }, [params]);
 
   const handleDownload = async () => {
     if (!audioFile || !audioSrc) return;
@@ -275,18 +267,6 @@ export default function SharePage({ params: paramsPromise }: SharePageProps) {
           </div>
         </main>
 
-        {/* Footer */}
-        <footer className="bg-white/50 dark:bg-black/50 backdrop-blur-md py-6 border-t border-gray-200/50 dark:border-white/10 mt-auto">
-          <div className="max-w-7xl mx-auto px-4 text-center">
-            <p className="text-gray-600 dark:text-gray-400">&copy; {new Date().getFullYear()} Voicerly. All rights reserved.</p>
-            <ul className="flex justify-center space-x-4 mt-2">
-              <li><a href="/privacy" className="text-gray-600 dark:text-gray-400 hover:text-[var(--color-primary)] dark:hover:text-orange-400 transition">Privacy Policy</a></li>
-              <li><a href="/terms" className="text-gray-600 dark:text-gray-400 hover:text-[var(--color-primary)] dark:hover:text-orange-400 transition">Terms of Service</a></li>
-              <li><a href="/about" className="text-gray-600 dark:text-gray-400 hover:text-[var(--color-primary)] dark:hover:text-orange-400 transition">About Us</a></li>
-            </ul>
-            <p className="text-sm text-gray-500 dark:text-gray-500 mt-4">The best online voice recorder for seamless audio sharing and collaboration.</p>
-          </div>
-        </footer>
       </div>
     );
   }
@@ -409,18 +389,6 @@ export default function SharePage({ params: paramsPromise }: SharePageProps) {
       </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white/50 dark:bg-black/50 backdrop-blur-md py-6 border-t border-gray-200/50 dark:border-white/10">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-gray-600 dark:text-gray-400">&copy; {new Date().getFullYear()} Voicerly. All rights reserved.</p>
-          <ul className="flex justify-center space-x-4 mt-2">
-            <li><a href="/privacy" className="text-gray-600 dark:text-gray-400 hover:text-[var(--color-primary)] dark:hover:text-orange-400 transition">Privacy Policy</a></li>
-            <li><a href="/terms" className="text-gray-600 dark:text-gray-400 hover:text-[var(--color-primary)] dark:hover:text-orange-400 transition">Terms of Service</a></li>
-            <li><a href="/about" className="text-gray-600 dark:text-gray-400 hover:text-[var(--color-primary)] dark:hover:text-orange-400 transition">About Us</a></li>
-          </ul>
-          <p className="text-sm text-gray-500 dark:text-gray-500 mt-4">The best online voice recorder for seamless audio sharing and collaboration.</p>
-        </div>
-      </footer>
     </div>
   );
 }

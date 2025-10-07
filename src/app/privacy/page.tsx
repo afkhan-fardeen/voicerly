@@ -1,10 +1,6 @@
-import Navigation from "@/components/Navigation";
-
 export default function Privacy() {
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
-      <Navigation />
-      <main className="py-16">
+    <div className="py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h1 className="text-4xl sm:text-5xl font-light text-black dark:text-white mb-3">
@@ -47,20 +43,6 @@ export default function Privacy() {
             </p>
           </div>
         </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-white/50 dark:bg-black/50 backdrop-blur-md py-6 border-t border-gray-200/50 dark:border-white/10">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-gray-600 dark:text-gray-400">&copy; {new Date().getFullYear()} Voicerly. All rights reserved.</p>
-          <ul className="flex justify-center space-x-4 mt-2">
-            <li><a href="/privacy" className="text-gray-600 dark:text-gray-400 hover:text-[var(--color-primary)] dark:hover:text-orange-400 transition">Privacy Policy</a></li>
-            <li><a href="/terms" className="text-gray-600 dark:text-gray-400 hover:text-[var(--color-primary)] dark:hover:text-orange-400 transition">Terms of Service</a></li>
-            <li><a href="/about" className="text-gray-600 dark:text-gray-400 hover:text-[var(--color-primary)] dark:hover:text-orange-400 transition">About Us</a></li>
-          </ul>
-          <p className="text-sm text-gray-500 dark:text-gray-500 mt-4">The best online voice recorder for seamless audio sharing and collaboration.</p>
-        </div>
-      </footer>
     </div>
   );
 }
