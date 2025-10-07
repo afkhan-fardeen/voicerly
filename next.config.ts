@@ -57,7 +57,7 @@ const nextConfig: NextConfig = {
           {
             key: 'Access-Control-Allow-Origin',
             value: process.env.NODE_ENV === 'production'
-              ? process.env.NEXT_PUBLIC_BASE_URL || 'https://yourdomain.com'
+              ? process.env.NEXT_PUBLIC_BASE_URL || 'https://voicerly.vercel.app'
               : 'http://localhost:3000',
           },
           {

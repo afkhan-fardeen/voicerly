@@ -1,4 +1,5 @@
 import Navigation from "@/components/Navigation";
+import Link from "next/link";
 
 export default function About() {
   return (
@@ -28,7 +29,7 @@ export default function About() {
             </div>
             <h2 className="text-xl font-medium text-black dark:text-white mb-2">Our Mission</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-              At Voicerly, we aim to democratize audio creation and sharing. We believe everyone should have access to professional-grade voice recording tools without barriers. That's why our online audio recorder is completely free, mobile-optimized, and packed with features like QR code sharing, social media integration, and embed options.
+              At Voicerly, we aim to democratize audio creation and sharing. We believe everyone should have access to professional-grade voice recording tools without barriers. That&apos;s why our online audio recorder is completely free, mobile-optimized, and packed with features like QR code sharing, social media integration, and embed options.
             </p>
           </div>
 
@@ -41,7 +42,7 @@ export default function About() {
             </div>
             <h2 className="text-xl font-medium text-black dark:text-white mb-2">Our Vision</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-              We envision a world where sharing audio is as simple as sending a text message. Whether you're a podcaster capturing ideas on the fly, a professional sharing meeting notes, or a student recording lectures, Voicerly provides a secure, user-friendly solution for all your audio needs.
+              We envision a world where sharing audio is as simple as sending a text message. Whether you&apos;re a podcaster capturing ideas on the fly, a professional sharing meeting notes, or a student recording lectures, Voicerly provides a secure, user-friendly solution for all your audio needs.
             </p>
           </div>
         </div>
@@ -123,7 +124,7 @@ export default function About() {
           <p className="text-gray-700 dark:text-gray-300 mb-6">
             Join thousands of users who trust Voicerly as their preferred online voice memo tool.
           </p>
-          <a 
+          <Link 
             href="/" 
             className="inline-flex items-center space-x-2 px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white rounded-lg transition-all duration-200 shadow-sm"
           >
@@ -131,7 +132,7 @@ export default function About() {
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
             </svg>
-          </a>
+          </Link>
         </div>
       </div>
       </main>

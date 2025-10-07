@@ -12,12 +12,11 @@ const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
 // Use config values
 const ALLOWED_AUDIO_TYPES = config.allowedAudioTypes;
-const MAX_FILE_SIZE = config.maxFileSize;
 const MAX_FILES_PER_HOUR = config.maxFilesPerHour;
 
 function getRateLimitKey(req: NextRequest): string {
   const forwarded = req.headers.get("x-forwarded-for");
-  const ip = forwarded ? forwarded.split(',')[0] : req.ip || 'unknown';
+  const ip = forwarded ? forwarded.split(',')[0] : 'unknown';
   return ip;
 }
 
@@ -39,12 +38,12 @@ function isRateLimited(key: string): boolean {
 }
 
 
-export async function OPTIONS(req: NextRequest) {
+export async function OPTIONS(_req: NextRequest) {
   return new NextResponse(null, {
     status: 200,
     headers: {
       'Access-Control-Allow-Origin': process.env.NODE_ENV === 'production' 
-        ? process.env.NEXT_PUBLIC_BASE_URL || 'https://yourdomain.com'
+        ? process.env.NEXT_PUBLIC_BASE_URL || 'https://voicerly.vercel.app'
         : 'http://localhost:3000',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',

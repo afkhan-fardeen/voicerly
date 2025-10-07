@@ -7,7 +7,7 @@ export interface RetryOptions {
   retryCondition?: (error: Error) => boolean;
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
   status: number;
@@ -96,7 +96,7 @@ export async function robustFetch(
 /**
  * API call wrapper with comprehensive error handling
  */
-export async function apiCall<T = any>(
+export async function apiCall<T = unknown>(
   url: string,
   options: RequestInit & {
     timeout?: number;
@@ -124,7 +124,7 @@ export async function apiCall<T = any>(
     if (contentType && contentType.includes('application/json')) {
       data = await response.json();
     } else {
-      data = await response.text() as any;
+      data = await response.text() as T;
     }
 
     if (!expectedStatusCodes.includes(response.status)) {
@@ -155,15 +155,13 @@ export async function uploadFileWithRetry(
   options: {
     timeout?: number;
     retry?: RetryOptions;
-    onProgress?: (progress: number) => void;
   } = {}
 ): Promise<ApiResponse> {
-  const { onProgress, ...apiOptions } = options;
 
   return apiCall(url, {
     method: 'POST',
     body: file,
-    ...apiOptions,
+    ...options,
   });
 }
 
@@ -190,7 +188,7 @@ export class AudioRecorder {
         this.stream = await navigator.mediaDevices.getUserMedia(
           constraints || defaultConstraints
         );
-      } catch (error) {
+      } catch (_error) {
         // Fallback for older browsers or restricted permissions
         console.warn('Advanced constraints failed, using basic audio constraints');
         this.stream = await navigator.mediaDevices.getUserMedia({

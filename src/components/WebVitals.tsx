@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from 'react';
-import { getCLS, getFID, getFCP, getLCP, getTTFB, Metric } from 'web-vitals';
+import { onCLS, onINP, onFCP, onLCP, onTTFB, Metric } from 'web-vitals';
 
 interface WebVitalsTrackerProps {
   enabled?: boolean;
@@ -22,13 +22,16 @@ export function WebVitalsTracker({ enabled = process.env.NODE_ENV === 'productio
       });
 
       // Example: Send to Google Analytics 4
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', metric.name, {
-          value: Math.round(metric.value),
-          event_category: 'Web Vitals',
-          event_label: metric.rating,
-          non_interaction: true,
-        });
+      if (typeof window !== 'undefined' && (window as Window & { gtag?: Function }).gtag) {
+        const gtag = (window as Window & { gtag?: Function }).gtag;
+        if (gtag) {
+          gtag('event', metric.name, {
+            value: Math.round(metric.value),
+            event_category: 'Web Vitals',
+            event_label: metric.rating,
+            non_interaction: true,
+          });
+        }
       }
 
       // Example: Send to a custom analytics endpoint
@@ -40,11 +43,11 @@ export function WebVitalsTracker({ enabled = process.env.NODE_ENV === 'productio
     };
 
     // Track all Core Web Vitals
-    getCLS(sendToAnalytics);
-    getFID(sendToAnalytics);
-    getFCP(sendToAnalytics);
-    getLCP(sendToAnalytics);
-    getTTFB(sendToAnalytics);
+    onCLS(sendToAnalytics);
+    onINP(sendToAnalytics);
+    onFCP(sendToAnalytics);
+    onLCP(sendToAnalytics);
+    onTTFB(sendToAnalytics);
   }, [enabled]);
 
   return null; // This component doesn't render anything
@@ -61,10 +64,10 @@ export function useWebVitals() {
       });
     };
 
-    getCLS(logMetric);
-    getFID(logMetric);
-    getFCP(logMetric);
-    getLCP(logMetric);
-    getTTFB(logMetric);
+    onCLS(logMetric);
+    onINP(logMetric);
+    onFCP(logMetric);
+    onLCP(logMetric);
+    onTTFB(logMetric);
   }, []);
 }

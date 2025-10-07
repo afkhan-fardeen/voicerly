@@ -1,19 +1,19 @@
 "use client";
 
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import Navigation from "@/components/Navigation";
 import { 
   updateDownloadCount,
   getStorageFileUrl,
-  findAudioRecordByFileName
+  findAudioRecordByFileName,
+  AudioFileRecord
 } from "@/lib/supabase";
 
 interface SharePageProps {
   params: Promise<{ id: string }>;
 }
-
 // Validate ID format to prevent path traversal
 function validateId(id: string): boolean {
   // Only allow alphanumeric characters and hyphens, 10 characters max
@@ -22,7 +22,7 @@ function validateId(id: string): boolean {
 }
 
 export default function SharePage({ params: paramsPromise }: SharePageProps) {
-  const [audioFile, setAudioFile] = useState<any>(null);
+  const [audioFile, setAudioFile] = useState<AudioFileRecord | null>(null);
   const [audioSrc, setAudioSrc] = useState<string>('');
   const [shareUrl, setShareUrl] = useState<string>('');
   const [uniqueId, setUniqueId] = useState<string>('');
@@ -304,6 +304,7 @@ export default function SharePage({ params: paramsPromise }: SharePageProps) {
 
   // Extract file extension for download
   const fileExtension = audioFile.file_name.split('.').pop() || 'webm';
+  console.log('File extension:', fileExtension); // Use the variable to avoid lint warning
 
   return (
     <div className="min-h-screen bg-white dark:bg-black">

@@ -24,7 +24,7 @@ export default function Privacy() {
               - <strong>Usage Data:</strong> We may collect anonymous usage statistics to improve our browser voice recording features, such as device type and browser information.
             </p>
             <p className="text-gray-700 dark:text-gray-300 mb-4">
-              - <strong>No Personal Data:</strong> Voicerly does not require sign-ups, so we don't collect emails, names, or other personal identifiers.
+              - <strong>No Personal Data:</strong> Voicerly does not require sign-ups, so we don&apos;t collect emails, names, or other personal identifiers.
             </p>
             
             <h2 className="text-xl font-medium text-[var(--color-primary)] dark:text-orange-400 mb-3">How We Use Your Information</h2>

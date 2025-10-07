@@ -21,7 +21,7 @@ export default function TermsOfService() {
         </p>
         <h2 className="text-xl font-medium text-[var(--color-primary)] dark:text-orange-400 mb-3">Limitations</h2>
         <p className="text-gray-700 dark:text-gray-300 mb-6">
-          We reserve the right to remove content or suspend access if it violates these terms. Voicerly is provided "as is" without warranties.
+          We reserve the right to remove content or suspend access if it violates these terms. Voicerly is provided &quot;as is&quot; without warranties.
         </p>
         <h2 className="text-xl font-medium text-[var(--color-primary)] dark:text-orange-400 mb-3">Intellectual Property</h2>
         <p className="text-gray-700 dark:text-gray-300 mb-6">

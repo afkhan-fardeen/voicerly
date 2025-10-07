@@ -8,7 +8,7 @@ const LazyQRCode = lazy(() => import("qrcode.react").then(module => ({ default: 
 
 // Social Share Component - loaded lazily when needed
 const LazySocialShareComponent = lazy(async () => {
-  const module = await import("react-share");
+  const reactShareModule = await import("react-share");
   return {
     default: function SocialShareComponent({ url }: { url: string }) {
       const {
@@ -17,7 +17,7 @@ const LazySocialShareComponent = lazy(async () => {
         LinkedinShareButton, LinkedinIcon,
         WhatsappShareButton, WhatsappIcon,
         EmailShareButton, EmailIcon
-      } = module;
+      } = reactShareModule;
 
       return (
         <div className="flex justify-center space-x-4">
@@ -241,7 +241,7 @@ export default function Home() {
         showError("Could not access microphone. Please check permissions and try again.", 'error');
       }
     }
-  }, [showError, supportedTypes]);
+  }, [showError, supportedTypes, clearError]);
 
   const pauseRecording = useCallback(() => {
     if (mediaRecorderRef.current && recording && !isPaused) {

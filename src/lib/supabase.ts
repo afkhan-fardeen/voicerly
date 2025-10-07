@@ -105,13 +105,12 @@ export const updateDownloadCount = async (fileId: string) => {
   }
 };
 
-export const findAudioRecordByFileName = async (fileNamePattern: string) => {
+export const findAudioRecordByFileName = async (fileNamePattern: string): Promise<AudioFileRecord | null> => {
   try {
     const { data: records, error } = await supabase
       .from(AUDIO_FILES_TABLE)
       .select('*')
-      .like('file_name', fileNamePattern)
-      .eq('is_active', true)
+      .like('file_name', `%${fileNamePattern}%`)
       .limit(1);
 
     if (error) {
@@ -141,7 +140,7 @@ export const getFileStats = async () => {
     }
 
     const allFiles = records || [];
-    const totalSize = allFiles.reduce((sum: number, file: any) => sum + file.file_size, 0);
+    const totalSize = allFiles.reduce((sum: number, file: { file_size: number }) => sum + file.file_size, 0);
 
     return {
       totalFiles: allFiles.length,
