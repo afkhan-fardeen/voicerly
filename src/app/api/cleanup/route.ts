@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
 }
 
 // GET endpoint to check file statistics
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     // Use Supabase stats function
     const stats = await getFileStats();

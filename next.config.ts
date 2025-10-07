@@ -1,8 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Performance optimizations
-  swcMinify: true,
 
   // Enable modern compression
   compress: true,

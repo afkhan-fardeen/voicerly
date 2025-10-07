@@ -111,7 +111,7 @@ export default function AboutPage() {
             </div>
             <h2 className="text-xl font-medium text-black dark:text-white mb-2">Our Vision</h2>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-              We envision a world where sharing audio is as simple as sending a text message. Whether you're a podcaster, professional, or student, Voicerly provides a secure, user-friendly solution.
+              We envision a world where sharing audio is as simple as sending a text message. Whether you&apos;re a podcaster, professional, or student, Voicerly provides a secure, user-friendly solution.
             </p>
           </div>
         </div>
