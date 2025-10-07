@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useMemo, Suspense, lazy, useEffect } from "react";
-import Navigation from "@/components/Navigation";
 
 // Lazy load heavy components for better initial load performance
 const LazyQRCode = lazy(() => import("qrcode.react").then(module => ({ default: module.QRCodeSVG })));
@@ -137,7 +136,7 @@ export default function Home() {
         return;
       }
 
-      // Check for mediaDevices support (iOS Safari compatibility)
+      // Check for mediaDevices support
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         showError("Microphone access is not available. Please use HTTPS or a supported browser.", 'error');
         return;
@@ -149,44 +148,24 @@ export default function Home() {
         return;
       }
 
-      // Detect iOS Safari for simplified constraints
-      const isIOSSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) && /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-      
-      let stream: MediaStream;
-      
-      if (isIOSSafari) {
-        // Use simplified constraints for iOS Safari
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({ 
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true
-            } 
-          });
-        } catch (iosError) {
-          console.log("iOS Safari advanced constraints failed, trying basic:", iosError);
-          // Fallback to most basic constraints for iOS
-          stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        }
-      } else {
-        // Use advanced constraints for other browsers
-        const audioConstraints = {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: 44100,
-          channelCount: 1,
-          sampleSize: 16,
-          latency: 0.01
-        };
+      // Use advanced constraints for browsers
+      const audioConstraints = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 44100,
+        channelCount: 1,
+        sampleSize: 16,
+        latency: 0.01
+      };
 
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
-        } catch (constraintError) {
-          console.log("Advanced constraints failed, trying basic constraints:", constraintError);
-          stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
-        }
+      let stream: MediaStream;
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+      } catch (constraintError) {
+        console.log("Advanced constraints failed, trying basic constraints:", constraintError);
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
       }
 
       let mimeType = '';
@@ -241,7 +220,7 @@ export default function Home() {
         showError("Could not access microphone. Please check permissions and try again.", 'error');
       }
     }
-  }, [showError, supportedTypes, clearError]);
+  }, [showError, supportedTypes, clearError, handleRecordStop]);
 
   const pauseRecording = useCallback(() => {
     if (mediaRecorderRef.current && recording && !isPaused) {
@@ -326,7 +305,7 @@ export default function Home() {
     } finally {
       setIsUploading(false);
     }
-  }, [recordedBlob, showError, clearError]);
+  }, [recordedBlob, showError, clearError, uploadAudio]);
 
   const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -362,7 +341,7 @@ export default function Home() {
     } finally {
       setIsUploading(false);
     }
-  }, [uploadFile, showError, clearError]);
+  }, [uploadFile, showError, clearError, uploadAudio]);
 
   const reupload = useCallback((startNew: boolean = false) => {
     setUploadFile(null);
@@ -567,7 +546,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-black">
-      <Navigation />
       <main>
         <section className="py-14 sm:py-16 bg-white dark:bg-black">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -671,16 +649,6 @@ export default function Home() {
                       >
                         Start Recording
                       </button>
-                      {/* iOS Safari Help */}
-                      <div className="text-xs text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-                        <p className="mb-1">📱 <strong>iOS Safari users:</strong></p>
-                        <p>If microphone access fails, please:</p>
-                        <ul className="text-left mt-2 space-y-1">
-                          <li>• Ensure you&apos;re using HTTPS</li>
-                          <li>• Allow microphone when prompted</li>
-                          <li>• Check Settings → Safari → Microphone</li>
-                        </ul>
-                      </div>
                     </div>
                   )}
 
@@ -848,12 +816,12 @@ export default function Home() {
                     <div className="flex">
                       <input
                         type="text"
-                        value={showRecordShareOptions ? recordShareLink : uploadShareLink}
+                        value={(showRecordShareOptions ? recordShareLink : uploadShareLink) ?? ""}
                         readOnly
                         className="flex-1 px-4 py-3 bg-gray-100/50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-l-lg text-black dark:text-white focus:outline-none focus:ring-2 focus:ring-[color:var(--color-primary)_/_50] font-mono text-sm"
                       />
                       <button
-                        onClick={() => copyToClipboard(showRecordShareOptions ? recordShareLink! : uploadShareLink!)}
+                        onClick={() => copyToClipboard((showRecordShareOptions ? recordShareLink : uploadShareLink) ?? "")}
                         className="px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white dark:text-black rounded-r-lg transition-all duration-300 font-light"
                       >
                         {copyFeedback ? 'Copied!' : 'Copy'}
@@ -865,7 +833,7 @@ export default function Home() {
                     <label className="block text-sm font-light text-gray-600 dark:text-gray-400 mb-3">Social Share</label>
                     <div className="flex justify-center">
                       <Suspense fallback={<LoadingSpinner />}>
-                        <LazySocialShareComponent url={showRecordShareOptions ? recordShareLink! : uploadShareLink!} />
+                        <LazySocialShareComponent url={(showRecordShareOptions ? recordShareLink : uploadShareLink) ?? ""} />
                       </Suspense>
                     </div>
                   </div>
@@ -892,7 +860,7 @@ export default function Home() {
                       <label className="block text-sm font-light text-gray-600 dark:text-gray-400 mb-4">QR Code</label>
                       <div className="flex justify-center">
                         <Suspense fallback={<LoadingSpinner />}>
-                          <LazyQRCode value={showRecordShareOptions ? recordShareLink! : uploadShareLink!} size={128} />
+                          <LazyQRCode value={(showRecordShareOptions ? recordShareLink : uploadShareLink) ?? ""} size={128} />
                         </Suspense>
                       </div>
                     </div>
@@ -904,12 +872,12 @@ export default function Home() {
                       <div className="flex">
                         <input
                           type="text"
-                          value={getEmbedCode(showRecordShareOptions ? recordShareLink! : uploadShareLink!)}
+                          value={getEmbedCode((showRecordShareOptions ? recordShareLink : uploadShareLink) ?? "")}
                           readOnly
                           className="flex-1 px-4 py-3 bg-gray-100/50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-l-lg text-black dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[color:var(--color-primary)_/_50] font-mono"
                         />
                         <button
-                          onClick={() => copyToClipboard(getEmbedCode(showRecordShareOptions ? recordShareLink! : uploadShareLink!))}
+                          onClick={() => copyToClipboard(getEmbedCode((showRecordShareOptions ? recordShareLink : uploadShareLink) ?? ""))}
                           className="px-6 py-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white dark:text-black rounded-r-lg transition-all duration-300 font-light"
                         >
                           Copy
